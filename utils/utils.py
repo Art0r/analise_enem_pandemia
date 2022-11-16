@@ -1,7 +1,8 @@
+from dask import dataframe as dd
 import matplotlib.pyplot as plt
 import pandas as pd
+import numpy as np
 import os
-
 
 def make_analisys_image(df: pd.DataFrame, output_path: str):
     fig, [[ax1, ax2], [ax3, ax4], [ax5, ax6], [ax7, ax8], [ax9, ax10], [ax11, ax12]] = plt.subplots(6, 2,
@@ -101,3 +102,56 @@ def make_analisys_image(df: pd.DataFrame, output_path: str):
 
     fig.savefig(os.path.join(
         output_path, f"histogram_and_boxplot_classes_{df[['NU_ANO']].iloc[0][0]}.jpg"))
+
+
+def setup():
+    YEARS = ['2019', '2020', '2021']
+    PATHS = {
+        '2019': os.path.join(os.getcwd(), 'dados', 'microdados_enem_2019', 'DADOS', 'MICRODADOS_ENEM_2019.csv'),
+        '2020': os.path.join(os.getcwd(), 'dados', 'microdados_enem_2020', 'DADOS', 'MICRODADOS_ENEM_2020.csv'),
+        '2021': os.path.join(os.getcwd(), 'dados', 'microdados_enem_2021', 'DADOS', 'MICRODADOS_ENEM_2021.csv')
+    }
+    ENCODING= "latin1"
+    SEP= ";"
+    COLS= [ 
+            'NU_INSCRICAO',
+            'Q006',
+            'NU_ANO',
+    #         'TP_COR_RACA',
+    #         'SG_UF_ESC', 
+    #         'TP_SEXO', 
+    #         'TP_FAIXA_ETARIA', 
+    #         'TP_ESCOLA',
+    #         'IN_TREINEIRO',
+            'NU_NOTA_CN',
+            'NU_NOTA_MT',
+            'NU_NOTA_LC',
+            'NU_NOTA_CH',
+            'NU_NOTA_REDACAO',
+    ]
+
+    df = {}
+    for i in YEARS:
+        df[i] = dd.read_csv(PATHS[i], encoding=ENCODING, sep=SEP, dtype={'SG_UF_ESC': 'object'}, usecols=COLS)
+        df[i] = df[i].compute()
+        df[i].dropna(inplace = True)
+
+        for j in 'DEFG':
+            df[i].loc[df[i]['Q006'] == j, 'Q006'] = 'D'
+
+        for j in 'ABC':
+            df[i].loc[df[i]['Q006'] == j, 'Q006'] = 'E' 
+
+        for j in 'HIJKLM':
+            df[i].loc[df[i]['Q006'] == j, 'Q006'] = 'C'
+
+        for j in 'NOP':
+            df[i].loc[df[i]['Q006'] == j, 'Q006'] = 'B'
+
+        df[i].loc[df[i]['Q006'] == 'Q', 'Q006'] = 'A'
+
+        df[i]['NU_MEDIA_GERAL'] = (df[i]['NU_NOTA_MT'] + df[i]['NU_NOTA_LC']
+                                    + df[i]['NU_NOTA_CH'] + df[i]['NU_NOTA_CN'] 
+                                    + df[i]['NU_NOTA_REDACAO'])/5
+        
+    return [df[i] for i in YEARS]
